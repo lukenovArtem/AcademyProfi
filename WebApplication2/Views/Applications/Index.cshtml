@@ -1,0 +1,76 @@
+﻿@model IEnumerable<AcademyProfi.Models.Application>
+
+@{
+    ViewData["Title"] = "Заявки";
+}
+
+<h2>Список заявок</h2>
+
+<div class="row mb-3">
+    <div class="col-md-3">
+        <label>Фильтр по статусу:</label>
+        <select id="statusFilter" class="form-control" asp-items="ViewBag.StatusList">
+            <option value="">Все</option>
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label>Поиск по ФИО (AJAX, debounce):</label>
+        <input type="text" id="searchInput" class="form-control" placeholder="Введите ФИО..." />
+    </div>
+    <div class="col-md-5 d-flex align-items-end">
+        <a asp-action="Create" class="btn btn-primary me-2">Создать</a>
+        <a asp-action="ExportCsv" class="btn btn-success">Экспорт CSV</a>
+    </div>
+</div>
+
+<div id="tableContainer">
+    @await Html.PartialAsync("_ApplicationsTable", Model)
+</div>
+
+@section Scripts {
+    <script>
+        let debounceTimer;
+
+        function loadFiltered() {
+            const statusId = $('#statusFilter').val();
+            const search = $('#searchInput').val();
+
+            $.ajax({
+                url: '@Url.Action("Filter", "Applications")',
+                type: 'GET',
+                data: { statusId: statusId, search: search },
+                success: function (result) {
+                    $('#tableContainer').html(result);
+                }
+            });
+        }
+
+        // Фильтр по статусу
+        $('#statusFilter').change(loadFiltered);
+
+        // Поиск с debounce 300 мс
+        $('#searchInput').on('input', function () {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(loadFiltered, 300);
+        });
+
+        // AJAX-смена статуса
+        $(document).on('change', '.status-dropdown', function () {
+            const id = $(this).data('id');
+            const statusId = $(this).val();
+            const token = $('input[name="__RequestVerificationToken"]').val();
+
+            $.ajax({
+                url: '@Url.Action("UpdateStatus", "Applications")',
+                type: 'POST',
+                data: { id: id, statusId: statusId, __RequestVerificationToken: token },
+                success: function (response) {
+                    if (response.success) {
+                        $('#row-' + id).css('background-color', '#d4edda');
+                        setTimeout(() => $('#row-' + id).css('background-color', ''), 800);
+                    }
+                }
+            });
+        });
+    </script>
+}
